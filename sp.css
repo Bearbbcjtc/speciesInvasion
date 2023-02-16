@@ -1,0 +1,7 @@
+svg g.map path:hover{
+    fill: #ffb7aa;
+}
+
+#dpath{
+    stroke:url(#gradient);
+}
