@@ -20,7 +20,6 @@ $Species = $_REQUEST["species"];
         <link rel="stylesheet" href="./sp.css">
 
         <style>
-
         </style>
 
 
@@ -12006,8 +12005,10 @@ $Species = $_REQUEST["species"];
 
         </svg>
 
-        <!-- Button -->
-        <form id="btnSelect" method="get" action="./map_sp_copy.php">
+<script type="text/javascript" src="./sp.js"></script>
+
+        <!-- Buttons form-->
+<form id="btnSelect" method="get" action="./map_sp_copy.php">
 
 <div>
 
@@ -12021,7 +12022,7 @@ $Species = $_REQUEST["species"];
         $row = $result->fetch_all();
 
         foreach ($row as $k => $v) { ?>
-            <input type="radio" name="species" id="speice_<?= $v[0] ?>" value="<?= $v[0] ?>"/>
+            <input type="radio" name="species" id="species_<?= $v[0] ?>" value="<?= $v[0] ?>"/>
 
             <label for="<?= $v[0] ?>"><?= $v[0] ?></label> 
 
@@ -12036,51 +12037,94 @@ $Species = $_REQUEST["species"];
     }
     echo "</br>Your selection is: ".$Species;
     ?>
-   
+
 </div>
 </form>
-<button onclick="exportTableToExcel('myTable', 'neighbours')">Export Table Data To Excel File</button>
+
+        <!-- color legend -->
+<svg id="legend" height=50>
+        <g>
+                <script type="text/javascript">
+                        Index.func.colorLegend("1822", "1918","2014");
+                </script>
+        </g>
+</svg>
+
+</br>
+
+<button onclick="Index.func.exportTableToExcel('myTable', 'neighbours')">Export Table Data To Excel File</button>
 
 <table id="myTable">
-
 </table>
 
 <!-- Draw -->
-<script type="text/javascript" src="./sp.js"></script>
-
 <?php
-$sqlRoute = "SELECT species, start_fipscode, end_fipscode, year1, year2 
-FROM route2_rd WHERE species = '".$Species."' 
-AND start_fipscode IS NOT NULL AND end_fipscode IS NOT NULL";
-
-echo $sqlRoute."</br>";?>
+$sqlpnt = "SELECT species, fips_code, date 
+FROM pointsall WHERE species = '".$Species."' 
+AND fips_code IS NOT NULL";
+?>
 <?php
-$resultRoute = $link->query($sqlRoute);
-if ($resultRoute) {
-        $row = $resultRoute->fetch_all();
+$resultPnt = $link->query($sqlpnt);
+if ($resultPnt) {
+        $row = $resultPnt->fetch_all();
         foreach ($row as $k => $v) { 
-        echo "start: ".$v[1]." end: ".$v[2]."</br>";
-        echo "year1: ".$v[3]." year2: ".$v[4]."</br>";?>
-
-        if
+        $v[1] = "FIPS_".$v[1];
+        echo "</br>NN1: ".$v[1]." Year: ".$v[2];?>
 
         <script type="text/javascript">
                 sRect = Index.func.getRect(<?php echo json_encode($v[1]) ?>);
+
                 sArr = Index.func.getCC(sRect);
-                Index.func.dotsDraw(sArr[0], sArr[1]);
-
-                eRect = Index.func.getRect(<?php echo json_encode($v[2]) ?>);
-                eArr = Index.func.getCC(eRect);
-                Index.func.dotsDraw(eArr[0], eArr[1]);
-
-                Index.func.pathsDraw(sArr, eArr, 
-                <?php echo json_encode($v[3], JSON_NUMERIC_CHECK) ?>, 
-                <?php echo json_encode($v[3], JSON_NUMERIC_CHECK) ?>);
-
+                Index.func.dotsDraw(sArr[0], sArr[1], <?php echo json_encode($v[2]) ?>);
         </script>
 
+        <?php
+        $sqlnbs = "SELECT neighbor1, neighbor2 
+        FROM neighbors WHERE neighbor1 = '".$v[1]."' 
+        AND neighbor1 IS NOT NULL";
 
+        $resultnbs = $link->query($sqlnbs);
 
+        if ($resultnbs) {
+                $row = $resultnbs->fetch_all();
+                foreach ($row as $k => $vn) { 
+                // echo "</br>NNN2: ".$vn[1];
+                // echo "</br>trim:".substr($vn[1],5);
+
+                $sqlNb = "SELECT species, fips_code, date 
+                FROM pointsall WHERE fips_code = '".substr($vn[1],5)."' 
+                AND species = '".$Species."'";          
+
+                $resultNb = $link->query($sqlNb);
+                if ($resultNb) {
+                        $row = $resultNb->fetch_all();
+                        foreach ($row as $k => $vnb) {
+                                $vnb[1] = "FIPS_".$vnb[1];
+                                echo "</br>NBEXIST fips_code: ".$vnb[1]." Year: ".$vnb[2];
+
+                                if($v[2] < $vnb[2]){
+                                        echo "</br>Exist path from year:".$v[2]." to year:".$vnb[2]?>
+
+                                        <script type="text/javascript">
+                                        sRect = Index.func.getRect(<?php echo json_encode($v[1]) ?>);
+
+                                        sArr = Index.func.getCC(sRect);
+                                        // Index.func.dotsDraw(sArr[0], sArr[1], <?php echo json_encode($v[2]) ?>);
+
+                                        eRect = Index.func.getRect(<?php echo json_encode($vnb[1]) ?>);
+                                        eArr = Index.func.getCC(eRect);
+                                        // Index.func.dotsDraw(eArr[0], eArr[1], <?php echo json_encode($v[2]) ?>);
+
+                                        Index.func.pathsDraw(sArr, eArr, <?php echo json_encode($v[2]) ?>, <?php echo json_encode($vnb[2]) ?>);
+
+                                        </script>
+                                        <?php
+                                        }
+                }
+                }
+                }
+        }
+        ?>
 
 <?php   } 
     }else{
@@ -12094,26 +12138,10 @@ if ($resultRoute) {
 
 
 
-
-
-
-
-
-
-
-
-
-        
-
-
-
-
-
-
-
-<script type="text/javascript" src="./sp.js"></script>
+<!-- <script type="text/javascript" src="./sp.js"></script> -->
 
 
 </body>
 
 </html>
+

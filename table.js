@@ -24,8 +24,7 @@ var Index = {
         },
 
         getRect: function (countyCode) {
-            Index.data.countyID = Index.data.txt.concat(countyCode);
-            console.log(Index.data.countyID);
+            Index.data.countyID = Index.data.txt.concat("FIPS_",countyCode);
             path = document.querySelector(Index.data.countyID);
             rect = path.getBBox();
             return rect;
@@ -47,22 +46,23 @@ var Index = {
             return r;
         },
 
-        dotsDraw: function (cx, cy, year) {
-        sdotHtml = `<circle id="dot" cx="${cx}" cy="${cy}" r="1" style="fill:${Index.func.yearColor(year)}"/>`;
+        dotsDraw: function (cx, cy) {
+        sdotHtml = `<circle id="dot" cx="${cx}" cy="${cy}" r="1" />`;
         Index.data.dotsElement.innerHTML += sdotHtml;
         },
 
         pathsDraw: function (start, end, year1, year2) {
+
             // pathHtml = `<line x1="${start[0]}" y1="${start[1]}" x2="${end[0]}" y2="${end[1]}" style="stroke:rgb(255,0,0);stroke-width:1" />`;
             pathHtml =`<path opacity="0.6" 
             d="M ${start[0]} ${start[1]} 
             A ${Index.func.getR(start,end)} ${Index.func.getR(start,end)} 0 0 0 ${end[0]} ${end[1]}" 
-            style="fill:none; stroke:${Index.func.yearColor(year2)};
-            stroke-width:0.7" />`
+            style="fill:none; stroke:${Index.func.colorMap(year1, year2)};
+            stroke-width:1" />`
             Index.data.dpathElement.innerHTML += pathHtml;
         },
 
-        yearColor: function (year) {
+        colorMap: function (year1, year2) {
             let seqColors = [
                 "#0d0887","#100788","#130789","#16078a","#19068c","#1b068d","#1d068e","#20068f","#220690","#240691","#260591",
                 "#280592","#2a0593","#2c0594","#2e0595","#2f0596","#310597","#330597","#350498","#370499","#38049a","#3a049a",
@@ -90,36 +90,16 @@ var Index = {
                 "#fcd225","#fbd324","#fbd524","#fbd724","#fad824","#fada24","#f9dc24","#f9dd25","#f8df25","#f8e125",
                 "#f7e225","#f7e425","#f6e626","#f6e826","#f5e926","#f5eb27","#f4ed27","#f3ee27","#f3f027","#f2f227",
                 "#f1f426","#f1f525","#f0f724","#f0f921"];
+                 
+                yearVal = (year2 + year1)/2;
+                //map color?
+                colorID = Math.trunc((yearVal%100));
+                var colorCode = seqColors[colorID];
 
-                var colorCode = "";
-                colorCode = seqColors[Math.round(((Math.abs(year - 1822)) / (2014 - 1822)) * (seqColors.length - 1))];
-
-
-                console.log(colorCode);
-                console.log(year);
-
+                // console.log(colorCode);
                 
                 return colorCode;
                 
-        },
-
-        colorLegend: function (start, middle, end) {
-            lgdHtml = `<g>
-            <text x=0 y=15 class="legend">${start}</text>
-            <text x=127 y=15 class="legend" text-anchor="middle">${middle}</text>
-            <text x=255 y=15 class="legend" text-anchor="end">${end}</text>           
-            `;
-
-            for(i=0; i<256; i++){
-                // console.log(i);
-                lgdHtml += `<line x1=${i} y1=20 x2=${i} y2=30 
-                style="stroke:${Index.func.yearColor(i/255*192+1822)}" />`;
-            }
-
-            lgdHtml += `</g>`;
-
-            document.getElementById("legend").innerHTML = lgdHtml;
-
         },
 
         exportTableToExcel: function(tableID, filename = ''){
@@ -154,9 +134,7 @@ var Index = {
         },
 
     }
-
 }
-
 
 
 
@@ -236,6 +214,71 @@ console.log('baseArr');
 // console.log(baseArr);
 
 
+//----make a table
+//create Table
+// var table = document.createElement('table');
+// table.setAttribute('id', 'myTable');
+
+var tInner = '<tbody>';
+
+var g = 0; //index for nbArr
+var nbArr = [];
+// Object.keys(Index.data.pdArr).forEach(key => 
+
+Index.data.pdArr.map(function(value, key) {
+    s=0;
+    var nb = {cid:"",nbs:[],};
+    var nbs = [];
+
+    n = value['cntId'];
+    v = value['pnt'];
+
+    nb.cid = n;
+
+    v.map(function(p, k) {
+        // console.log(nbs);
+        
+        Index.data.pdArr.map(function(value1, key1){
+            n1 = value1['cntId'];
+            v1 = value1['pnt'];
+            var f = 0; //stop flag for inner loop
+
+            if( n1 !== n && nbs.includes(n1) == false ){ 
+                v1.map(function(p1, k1) {
+                    if( f == 0){
+                        var d = Math.sqrt(Math.pow((p.x - p1.x),2) + Math.pow((p.y - p1.y),2));
+                        if(d < Index.data.dist){
+                            console.log(n, p.x, p.y);
+                            console.log(n1, p1.x, p1.y);
+                            console.log(n,n1);
+                            nbs[s] = n1;
+                            s++;
+                            f = 1;
+
+                            //make table
+                            tInner+='<tr>';
+                            tInner+='<td>'+n+'</td>';
+                            tInner+='<td>'+n1+'</td>';
+                            tInner+='</tr>';
+                        }
+                    }
+                })                  
+            }                          
+        })
+    })
+    nb.nbs = nbs;
+    nbArr[g] = nb;
+    
+    g++;
+
+    })
+
+console.log(nbArr);
+
+tInner+='</tbody>';
+
+console.log(tInner);
+document.getElementById('myTable').innerHTML = tInner;
 
                 
 
