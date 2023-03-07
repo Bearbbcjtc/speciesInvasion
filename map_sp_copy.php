@@ -4,6 +4,8 @@ include("./inc_sp.php");
 
 
 $Species = $_REQUEST["species"];
+$Year = $_REQUEST["year"];
+$Yearstep = $_REQUEST["yearstep"];
 
 
 ?>
@@ -20,12 +22,28 @@ $Species = $_REQUEST["species"];
         <link rel="stylesheet" href="./sp.css">
 
         <style>
+        canvas,
+        svg {
+                display: inline-block;
+                border: 0px solid #ccc;
+                width:700px;
+                }
+
+        #canvasPaper{
+                display:none;
+        }
+
+
+
         </style>
 
 
 </head>
 
 <body>
+
+<svg id="svg" >
+</svg>
 
         <!-- US MAP -->                    
         <svg id="svg9559" onclick="Index.func.clickHome()" width="555.22" height="351.67" 
@@ -12005,63 +12023,118 @@ $Species = $_REQUEST["species"];
 
         </svg>
 
+        <canvas id="canvasPaper" width="555.22" height="351.67"></canvas>
+
+        <!-- table button -->
+        <!-- <button onclick="Index.func.exportTableToExcel('myTable', 'CountiesXY')">Export Table Data To Excel File</button> -->
+   
+        <!-- table -->
+        <!-- <table id="myTable"></table> -->
+
+<!-- script link -->
 <script type="text/javascript" src="./sp.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.0/paper-full.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
+<script src="./pathFun.js" type="text/javascript"></script>
+
+<!-- color legend -->
+<svg id="legend" height=50>
+<g>
+        <script type="text/javascript">
+                Index.func.colorLegend("1822", "1918","2014");
+        </script>
+</g>
+</svg>
 
         <!-- Buttons form-->
 <form id="btnSelect" method="get" action="./map_sp_copy.php">
 
 <div>
 
-    <?php
-    $sql = "SELECT species, COUNT(*)
-    FROM pointsall
-    GROUP BY species";
+        <?php
+        $sql = "SELECT species, COUNT(*)
+        FROM pointsall
+        GROUP BY species";
 
-    $result = $link->query($sql);
-    if ($result) {
+        $result = $link->query($sql);
+        if ($result) {
         $row = $result->fetch_all();
 
         foreach ($row as $k => $v) { ?>
-            <input type="radio" name="species" id="species_<?= $v[0] ?>" value="<?= $v[0] ?>"/>
+                <input type="radio" name="species" id="species_<?= $v[0] ?>" value="<?= $v[0] ?>"/>
 
-            <label for="<?= $v[0] ?>"><?= $v[0] ?></label> 
+                <label for="<?= $v[0] ?>"><?= $v[0] ?></label> 
 
         <?php
 
         } ?>
-       
+
         <br>
-        <button type="submit">Submit</button>       
 
         <?php
-    }
-    echo "</br>Your selection is: ".$Species;
-    ?>
+        }
+        ?>
+
+        <!-- year select btn -->
+        <script>
+                // for(i=1822; i<2015; i=i+10){
+                //         j = i+10;
+                //         document.write("<input type='radio' name='year' id='year_"+i+"' value='"+i+"'/>");
+                //         document.write("<label for='"+i+"'>"+i+"~"+j+"</label>");
+                        
+                // }
+
+                document.write('<input type="range" name="year" min="1822" max="2015" value="10" class="slider" id="myRange" >');
+                document.write('<p>From year: <span id="start"></span></p>');
+
+                var slider = document.getElementById("myRange");
+                var output = document.getElementById("start");
+                output.innerHTML = slider.value;
+
+                slider.oninput = function() {
+                output.innerHTML = this.value;
+                }
+
+                document.write('<input type="range" name="yearstep" min="1" max="200" value="10" class="slider" id="myStep" >');
+                document.write('<p>Year step: <span id="step"></span></p>');
+
+                var slider1 = document.getElementById("myStep");
+                var output1 = document.getElementById("step");
+                output1.innerHTML = slider.value;
+
+                slider1.oninput = function() {
+                output1.innerHTML = this.value;
+                }
+
+        </script>
+
+        <br>
+        <button type="submit">Submit</button>     
+        <?php
+        echo "</br>Your Species selection is: ".$Species;
+        echo "</br>Your Start year is: ".$Year;       
+        echo "</br>Your Year step is: ".$Yearstep;       
+        ?>
 
 </div>
 </form>
 
-        <!-- color legend -->
-<svg id="legend" height=50>
-        <g>
-                <script type="text/javascript">
-                        Index.func.colorLegend("1822", "1918","2014");
-                </script>
-        </g>
-</svg>
-
 </br>
-
-<button onclick="Index.func.exportTableToExcel('myTable', 'neighbours')">Export Table Data To Excel File</button>
-
-<table id="myTable">
-</table>
 
 <!-- Draw -->
 <?php
+$sqlFips = "UPDATE pointsall SET fips_code = (SELECT fips_code FROM map_latlon_rd 
+WHERE 6371 * acos(
+cos(radians(pointsall.latitude))*cos(radians(map_latlon_rd.lat))
+*cos(radians(pointsall.longitude)-radians(map_latlon_rd.lon))+sin(radians(pointsall.latitude))
+*sin(radians(map_latlon_rd.lat))) < 0.1 )"; //up to 40
+
+$Year2 = $Year+$Yearstep;
+
 $sqlpnt = "SELECT species, fips_code, date 
 FROM pointsall WHERE species = '".$Species."' 
-AND fips_code IS NOT NULL";
+AND date >".$Year." AND date <".$Year2." AND fips_code IS NOT NULL";
 ?>
 <?php
 $resultPnt = $link->query($sqlpnt);
@@ -12100,12 +12173,54 @@ if ($resultPnt) {
                         $row = $resultNb->fetch_all();
                         foreach ($row as $k => $vnb) {
                                 $vnb[1] = "FIPS_".$vnb[1];
-                                echo "</br>NBEXIST fips_code: ".$vnb[1]." Year: ".$vnb[2];
+                                // echo "</br>NBEXIST fips_code: ".$vnb[1]." Year: ".$vnb[2];
+
+                                
 
                                 if($v[2] < $vnb[2]){
-                                        echo "</br>Exist path from year:".$v[2]." to year:".$vnb[2]?>
+                                        // echo "</br>Exist path from year:".$v[2]." to year:".$vnb[2];
+                                        echo "</br>Exist path from code:".$v[1]." to code:".$vnb[1];
+                                        
+                                        ?>
 
                                         <script type="text/javascript">
+                                        // putinto record Array
+                                        
+                                        Index.data.areaArr = [];
+                                        var m =0;
+                                        var n =0;
+
+                                        
+
+                                        if (Index.data.areaArrBig.length == 0){
+                                                Index.data.areaArr.push(<?php echo json_encode($v[1])?>,<?php echo json_encode($vnb[1])?>);
+                                                Index.data.areaArrBig[Index.data.g] = Index.data.areaArr;
+                                        }
+                                        else{
+                                                Index.data.areaArrBig.forEach(v => {
+                                                        if(v.includes(<?php echo json_encode($v[1])?>)==true){
+                                                                if( v.includes(<?php echo json_encode($vnb[1])?>)==false){
+                                                                        m++;
+                                                                        v.push(<?php echo json_encode($vnb[1])?>);
+                                                                };
+                                                                if(v.includes(<?php echo json_encode($vnb[1])?>)==true){
+                                                                        n++;
+                                                                };
+                                                                   
+                                                        }
+                                                });
+                                                if(m == 0 && n == 0){
+                                                        Index.data.areaArr = [];
+                                                        Index.data.areaArr.push(<?php echo json_encode($v[1])?>,<?php echo json_encode($vnb[1])?>);
+                                                        Index.data.areaArrBig[Index.data.areaArrBig.length] = Index.data.areaArr;
+                                                }
+                                        }
+
+                                        // console.log(Index.data.areaArrBig);
+
+                                
+
+
                                         sRect = Index.func.getRect(<?php echo json_encode($v[1]) ?>);
 
                                         sArr = Index.func.getCC(sRect);
@@ -12113,7 +12228,7 @@ if ($resultPnt) {
 
                                         eRect = Index.func.getRect(<?php echo json_encode($vnb[1]) ?>);
                                         eArr = Index.func.getCC(eRect);
-                                        // Index.func.dotsDraw(eArr[0], eArr[1], <?php echo json_encode($v[2]) ?>);
+                                        Index.func.dotsDraw(eArr[0], eArr[1], <?php echo json_encode($v[2]) ?>);
 
                                         Index.func.pathsDraw(sArr, eArr, <?php echo json_encode($v[2]) ?>, <?php echo json_encode($vnb[2]) ?>);
 
@@ -12122,10 +12237,10 @@ if ($resultPnt) {
                                         }
                 }
                 }
+
                 }
         }
         ?>
-
 <?php   } 
     }else{
         echo "no result";
@@ -12144,4 +12259,88 @@ if ($resultPnt) {
 </body>
 
 </html>
+
+<script>  
+// ---get data from json file and get global data from json
+
+var dataJ = [];
+$.ajaxSettings.async = false;
+
+$.getJSON('data.json',function(data){
+        //display your pnts data however you want.    
+        //console.log(data);
+
+        dataJ = data;
+
+        return dataJ;
+
+    })
+    $.ajaxSettings.async = true;
+   
+    console.log(dataJ);
+    console.log(Index.data.areaArrBig);
+
+// ---paper
+        
+paper.install(window);
+const svg = document.querySelector("#stylegroup");
+const canvas = document.querySelector("#canvasPaper");
+
+//take unite func out
+paper.setup("canvasPaper");
+
+Index.data.areaArrBig.forEach(v => {
+
+        // create an render mergedPolygon
+        const mergedPolygon = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        mergedPolygon.setAttribute("fill", '#1E90FF');
+        mergedPolygon.setAttribute("fill-opacity", '0.3');
+        mergedPolygon.setAttribute("stroke", '#4169E1');
+        mergedPolygon.setAttribute("stroke-width", '0.5px');
+        svg.appendChild(mergedPolygon);
+
+        let united= new Path();       
+        for(let i =0; i< v.length; i++){
+        var path = getCodePathItem(dataJ, v[i]);
+        path.closed = true;
+        united = united.unite(path);
+        // console.log(v[i]);
+        // console.log(united);
+        }
+
+        let unitedData = united
+        .exportSVG({
+                precision: 3
+        })
+        .getAttribute("d");
+
+        mergedPolygon.setAttribute("d", unitedData);
+        
+});
+// const mergedPolygon = document.createElementNS("http://www.w3.org/2000/svg", "path");
+//         mergedPolygon.setAttribute("fill", '#DC143C');
+//         mergedPolygon.setAttribute("fill-opacity", '0.5');
+//         mergedPolygon.setAttribute("stroke", '#DC143C');
+//         mergedPolygon.setAttribute("stroke-width", '0.5px');
+//         svg.appendChild(mergedPolygon);
+
+// var path = getCodePathItem(dataJ, 'FIPS_12021');
+// var path1 = getCodePathItem(dataJ, 'FIPS_12011');
+// path.closed = true;
+// united1 = path1.unite(path);
+
+// let unitedData1 = united1
+//         .exportSVG({
+//                 precision: 3
+//         })
+//         .getAttribute("d");
+
+//         mergedPolygon.setAttribute("d", unitedData1);
+
+// console.log(path);
+// console.log(path1);
+
+
+
+</script>
 
